@@ -70,6 +70,9 @@ struct _StWidgetPrivate
   guint track_hover : 1;
   guint hover : 1;
   guint can_focus : 1;
+  guint is_resource_scale_valid : 1;
+
+  float resource_scale;
 
   gulong texture_file_changed_id;
 
@@ -121,6 +124,7 @@ enum
 {
   STYLE_CHANGED,
   POPUP_MENU,
+  RESOURCE_SCALE_CHANGED,
 
   LAST_SIGNAL
 };
@@ -139,6 +143,8 @@ static gboolean st_widget_real_navigate_focus (StWidget         *widget,
                                                GtkDirectionType  direction);
 
 static AtkObject * st_widget_get_accessible (ClutterActor *actor);
+
+static void st_widget_sync_resource_scale (StWidget *widget);
 
 static void
 st_widget_set_property (GObject      *gobject,
@@ -408,6 +414,7 @@ st_widget_allocate (ClutterActor          *actor,
                     const ClutterActorBox *box,
                     ClutterAllocationFlags flags)
 {
+  StWidgetPrivate *priv = st_widget_get_instance_private (ST_WIDGET (actor));
   StThemeNode *theme_node = st_widget_get_theme_node (ST_WIDGET (actor));
   ClutterActorBox content_box;
 
@@ -427,6 +434,9 @@ st_widget_allocate (ClutterActor          *actor,
                                    CLUTTER_CONTAINER (actor),
                                    &content_box,
                                    flags);
+
+  priv->is_resource_scale_valid = FALSE;
+  st_widget_sync_resource_scale (ST_WIDGET (actor));
 }
 
 /**
@@ -476,6 +486,7 @@ static void
 st_widget_parent_set (ClutterActor *widget,
                       ClutterActor *old_parent)
 {
+  StWidget *self = ST_WIDGET (widget);
   ClutterActorClass *parent_class;
   ClutterActor *new_parent;
 
@@ -487,7 +498,22 @@ st_widget_parent_set (ClutterActor *widget,
 
   /* don't send the style changed signal if we no longer have a parent actor */
   if (new_parent)
-    st_widget_style_changed (ST_WIDGET (widget));
+    {
+      st_widget_style_changed (self);
+      st_widget_sync_resource_scale (self);
+    }
+}
+
+static void
+st_widget_realize (ClutterActor *actor)
+{
+  ClutterActorClass *actor_class =
+    CLUTTER_ACTOR_CLASS (st_widget_parent_class);
+
+  if (actor_class->realize)
+    actor_class->realize (actor);
+
+  st_widget_sync_resource_scale (ST_WIDGET (actor));
 }
 
 static void
@@ -498,6 +524,7 @@ st_widget_map (ClutterActor *actor)
   CLUTTER_ACTOR_CLASS (st_widget_parent_class)->map (actor);
 
   st_widget_ensure_style (self);
+  st_widget_sync_resource_scale (self);
 }
 
 static void
@@ -531,7 +558,7 @@ notify_children_of_style_change (ClutterActor *self)
 static void
 st_widget_real_style_changed (StWidget *self)
 {
-  clutter_actor_queue_redraw ((ClutterActor *) self);
+  clutter_actor_queue_relayout ((ClutterActor *) self);
   notify_children_of_style_change ((ClutterActor *) self);
 }
 
@@ -857,6 +884,7 @@ st_widget_class_init (StWidgetClass *klass)
   actor_class->paint = st_widget_paint;
   actor_class->get_paint_volume = st_widget_get_paint_volume;
   actor_class->parent_set = st_widget_parent_set;
+  actor_class->realize = st_widget_realize;
   actor_class->map = st_widget_map;
   actor_class->unmap = st_widget_unmap;
 
@@ -1042,6 +1070,21 @@ st_widget_class_init (StWidgetClass *klass)
                   G_TYPE_FROM_CLASS (klass),
                   G_SIGNAL_RUN_LAST,
                   G_STRUCT_OFFSET (StWidgetClass, popup_menu),
+                  NULL, NULL, NULL,
+                  G_TYPE_NONE, 0);
+
+  /**
+   * StWidget::resource-scale-changed:
+   * @widget: the #StWidget
+   *
+   * Emitted when the paint scale that the widget will be painted as
+   * changed.
+   */
+  signals[RESOURCE_SCALE_CHANGED] =
+    g_signal_new ("resource-scale-changed",
+                  G_TYPE_FROM_CLASS (klass),
+                  G_SIGNAL_RUN_LAST,
+                  G_STRUCT_OFFSET (StWidgetClass, resource_scale_changed),
                   NULL, NULL, NULL,
                   G_TYPE_NONE, 0);
 }
@@ -1471,6 +1514,57 @@ st_widget_get_style (StWidget *actor)
   g_return_val_if_fail (ST_IS_WIDGET (actor), NULL);
 
   return ST_WIDGET_PRIVATE (actor)->inline_style;
+}
+
+static gboolean
+st_widget_update_resource_scale (StWidget *widget)
+{
+  StWidgetPrivate *priv = st_widget_get_instance_private (widget);
+  float resource_scale;
+  float old_resource_scale;
+
+  g_return_val_if_fail (!priv->is_resource_scale_valid, FALSE);
+
+  if (!clutter_actor_get_resource_scale (CLUTTER_ACTOR (widget), &resource_scale))
+    return FALSE;
+
+  old_resource_scale = priv->resource_scale;
+  priv->resource_scale = resource_scale;
+  priv->is_resource_scale_valid = TRUE;
+
+  return old_resource_scale != resource_scale;
+}
+
+static void
+st_widget_sync_resource_scale (StWidget *widget)
+{
+  StWidgetPrivate *priv = st_widget_get_instance_private (widget);
+
+  if (priv->is_resource_scale_valid)
+    return;
+
+  if (st_widget_update_resource_scale (widget))
+    g_signal_emit (widget, signals[RESOURCE_SCALE_CHANGED], 0);
+}
+
+gboolean
+st_widget_get_resource_scale (StWidget *widget,
+                              float    *resource_scale)
+{
+  StWidgetPrivate *priv = st_widget_get_instance_private (widget);
+
+  if (!priv->is_resource_scale_valid)
+    st_widget_update_resource_scale (widget);
+
+  if (priv->is_resource_scale_valid)
+    {
+      *resource_scale = priv->resource_scale;
+      return TRUE;
+    }
+  else
+    {
+      return FALSE;
+    }
 }
 
 static void
