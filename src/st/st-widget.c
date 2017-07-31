@@ -1556,7 +1556,7 @@ st_widget_get_resource_scale (StWidget *widget,
   if (!priv->is_resource_scale_valid)
     st_widget_update_resource_scale (widget);
 
-  if (priv->is_resource_scale_valid)
+  if (priv->is_resource_scale_valid && resource_scale)
     {
       *resource_scale = priv->resource_scale;
       return TRUE;
