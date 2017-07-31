@@ -62,12 +62,18 @@ draw_content (ClutterCanvas *canvas,
 {
   StDrawingArea *area = ST_DRAWING_AREA (user_data);
   StDrawingAreaPrivate *priv = st_drawing_area_get_instance_private (area);
+  float resource_scale = 1.0f;
+
+  st_widget_get_resource_scale (ST_WIDGET (area), &resource_scale);
 
   priv->context = cr;
   priv->in_repaint = TRUE;
 
   clutter_cairo_clear (cr);
+  cairo_scale(cr, resource_scale, resource_scale);
+  cairo_save(cr);
   g_signal_emit (area, st_drawing_area_signals[REPAINT], 0);
+  cairo_restore(cr);
 
   priv->context = NULL;
   priv->in_repaint = FALSE;
@@ -84,13 +90,19 @@ st_drawing_area_allocate (ClutterActor          *self,
   ClutterContent *content = clutter_actor_get_content (self);
   ClutterActorBox content_box;
   int width, height;
+  float resource_scale;
 
   clutter_actor_set_allocation (self, box, flags);
   st_theme_node_get_content_box (theme_node, box, &content_box);
 
+  if (!st_widget_get_resource_scale (ST_WIDGET (self), &resource_scale))
+    resource_scale = 1.0f;
+
   width = (int)(0.5 + content_box.x2 - content_box.x1);
   height = (int)(0.5 + content_box.y2 - content_box.y1);
-  clutter_canvas_set_size (CLUTTER_CANVAS (content), width, height);
+  clutter_canvas_set_size (CLUTTER_CANVAS (content),
+                           width * resource_scale,
+                           height * resource_scale);
 }
 
 static void
@@ -102,6 +114,12 @@ st_drawing_area_style_changed (StWidget  *self)
 }
 
 static void
+st_drawing_area_resource_scale_changed (StWidget *self)
+{
+  st_drawing_area_queue_repaint (ST_DRAWING_AREA (self));
+}
+
+static void
 st_drawing_area_class_init (StDrawingAreaClass *klass)
 {
   ClutterActorClass *actor_class = CLUTTER_ACTOR_CLASS (klass);
@@ -109,6 +127,7 @@ st_drawing_area_class_init (StDrawingAreaClass *klass)
 
   actor_class->allocate = st_drawing_area_allocate;
   widget_class->style_changed = st_drawing_area_style_changed;
+  widget_class->resource_scale_changed = st_drawing_area_resource_scale_changed;
 
   st_drawing_area_signals[REPAINT] =
     g_signal_new ("repaint",
@@ -185,7 +204,7 @@ st_drawing_area_get_surface_size (StDrawingArea *area,
 {
   StDrawingAreaPrivate *priv;
   ClutterContent *content;
-  float w, h;
+  float w, h, resource_scale;
 
   g_return_if_fail (ST_IS_DRAWING_AREA (area));
 
@@ -194,6 +213,12 @@ st_drawing_area_get_surface_size (StDrawingArea *area,
 
   content = clutter_actor_get_content (CLUTTER_ACTOR (area));
   clutter_content_get_preferred_size (content, &w, &h);
+
+  if (!st_widget_get_resource_scale (ST_WIDGET (area), &resource_scale))
+    resource_scale = 1.0f;
+
+  w /= resource_scale;
+  h /= resource_scale;
 
   if (width)
     *width = (guint)w;
