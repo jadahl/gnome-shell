@@ -62,18 +62,12 @@ draw_content (ClutterCanvas *canvas,
 {
   StDrawingArea *area = ST_DRAWING_AREA (user_data);
   StDrawingAreaPrivate *priv = st_drawing_area_get_instance_private (area);
-  float resource_scale = 1.0f;
-
-  st_widget_get_resource_scale (ST_WIDGET (area), &resource_scale);
 
   priv->context = cr;
   priv->in_repaint = TRUE;
 
   clutter_cairo_clear (cr);
-  cairo_scale(cr, resource_scale, resource_scale);
-  cairo_save(cr);
   g_signal_emit (area, st_drawing_area_signals[REPAINT], 0);
-  cairo_restore(cr);
 
   priv->context = NULL;
   priv->in_repaint = FALSE;
@@ -92,17 +86,23 @@ st_drawing_area_allocate (ClutterActor          *self,
   int width, height;
   float resource_scale;
 
+  if (!st_widget_get_resource_scale (ST_WIDGET (self), &resource_scale))
+    {
+      ClutterActorBox invalid = CLUTTER_ACTOR_BOX_INIT_ZERO;
+      clutter_actor_set_allocation (self, &invalid, 0);
+      return;
+    }
+
   clutter_actor_set_allocation (self, box, flags);
   st_theme_node_get_content_box (theme_node, box, &content_box);
 
-  if (!st_widget_get_resource_scale (ST_WIDGET (self), &resource_scale))
-    resource_scale = 1.0f;
-
   width = (int)(0.5 + content_box.x2 - content_box.x1);
   height = (int)(0.5 + content_box.y2 - content_box.y1);
+
+  clutter_canvas_set_scale_factor (CLUTTER_CANVAS (content), resource_scale);
   clutter_canvas_set_size (CLUTTER_CANVAS (content),
-                           width * resource_scale,
-                           height * resource_scale);
+                           width,
+                           height);
 }
 
 static void
@@ -214,11 +214,15 @@ st_drawing_area_get_surface_size (StDrawingArea *area,
   content = clutter_actor_get_content (CLUTTER_ACTOR (area));
   clutter_content_get_preferred_size (content, &w, &h);
 
-  if (!st_widget_get_resource_scale (ST_WIDGET (area), &resource_scale))
-    resource_scale = 1.0f;
-
-  w /= resource_scale;
-  h /= resource_scale;
+  if (st_widget_get_resource_scale (ST_WIDGET (area), &resource_scale))
+    {
+      w /= resource_scale;
+      h /= resource_scale;
+    }
+  else
+    {
+      w = h = 0.0f;
+    }
 
   if (width)
     *width = (guint)w;
