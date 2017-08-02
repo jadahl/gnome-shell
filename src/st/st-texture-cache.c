@@ -861,6 +861,7 @@ st_texture_cache_load_gicon (StTextureCache    *cache,
                              gfloat             resource_scale)
 {
   AsyncTextureLoadData *request;
+  gint resource_size;
   gint scale;
   ClutterActor *texture;
   char *gicon_string;
@@ -893,9 +894,19 @@ st_texture_cache_load_gicon (StTextureCache    *cache,
   else
     lookup_flags |= GTK_ICON_LOOKUP_DIR_LTR;
 
-  scale = ceilf (paint_scale * resource_scale);
+  if (fmodf (resource_scale, 1.0f) == 0.0f)
+    {
+      scale = paint_scale * resource_scale;
+      resource_size = size;
+    }
+  else
+    {
+      scale = 1;
+      resource_size = ceilf (size * resource_scale * resource_scale);
+    }
+
   info = gtk_icon_theme_lookup_by_gicon_for_scale (theme, icon,
-                                                   size, scale,
+                                                   resource_size, scale,
                                                    lookup_flags);
   if (info == NULL)
     return NULL;
@@ -911,7 +922,7 @@ st_texture_cache_load_gicon (StTextureCache    *cache,
     {
       /* This raises some doubts about the practice of using string keys */
       key = g_strdup_printf (CACHE_PREFIX_ICON "%s,size=%d,scale=%d,style=%d,colors=%2x%2x%2x%2x,%2x%2x%2x%2x,%2x%2x%2x%2x,%2x%2x%2x%2x",
-                             gicon_string, size, scale, icon_style,
+                             gicon_string, resource_size, scale, icon_style,
                              colors->foreground.red, colors->foreground.blue, colors->foreground.green, colors->foreground.alpha,
                              colors->warning.red, colors->warning.blue, colors->warning.green, colors->warning.alpha,
                              colors->error.red, colors->error.blue, colors->error.green, colors->error.alpha,
@@ -920,7 +931,7 @@ st_texture_cache_load_gicon (StTextureCache    *cache,
   else
     {
       key = g_strdup_printf (CACHE_PREFIX_ICON "%s,size=%d,scale=%d,style=%d",
-                             gicon_string, size, scale, icon_style);
+                             gicon_string, resource_size, scale, icon_style);
     }
   g_free (gicon_string);
 
@@ -943,7 +954,7 @@ st_texture_cache_load_gicon (StTextureCache    *cache,
       request->policy = policy;
       request->colors = colors ? st_icon_colors_ref (colors) : NULL;
       request->icon_info = info;
-      request->width = request->height = size;
+      request->width = request->height = resource_size;
       request->scale = scale;
 
       load_texture_async (cache, request);
