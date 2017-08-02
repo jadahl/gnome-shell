@@ -894,16 +894,11 @@ st_texture_cache_load_gicon (StTextureCache    *cache,
   else
     lookup_flags |= GTK_ICON_LOOKUP_DIR_LTR;
 
-  if (fmodf (resource_scale, 1.0f) == 0.0f)
-    {
-      scale = paint_scale * resource_scale;
-      resource_size = size;
-    }
-  else
-    {
-      scale = 1;
-      resource_size = ceilf (size * resource_scale * resource_scale);
-    }
+  scale = MAX (1, paint_scale * resource_scale);
+  resource_size = size;
+
+  if (fmodf (resource_scale, 1.0f) != 0.0f)
+    resource_size += (ceilf (size * resource_scale) - (scale * size)) / scale;
 
   info = gtk_icon_theme_lookup_by_gicon_for_scale (theme, icon,
                                                    resource_size, scale,
