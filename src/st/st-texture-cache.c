@@ -24,6 +24,7 @@
 #include "st-texture-cache.h"
 #include "st-private.h"
 #include <gtk/gtk.h>
+#include <math.h>
 #include <string.h>
 #include <glib.h>
 
@@ -857,7 +858,7 @@ st_texture_cache_load_gicon (StTextureCache    *cache,
                              GIcon             *icon,
                              gint               size,
                              gint               paint_scale,
-                             gint               resource_scale)
+                             gfloat             resource_scale)
 {
   AsyncTextureLoadData *request;
   gint scale;
@@ -892,7 +893,7 @@ st_texture_cache_load_gicon (StTextureCache    *cache,
   else
     lookup_flags |= GTK_ICON_LOOKUP_DIR_LTR;
 
-  scale = paint_scale * resource_scale;
+  scale = ceilf (paint_scale * resource_scale);
   info = gtk_icon_theme_lookup_by_gicon_for_scale (theme, icon,
                                                    size, scale,
                                                    lookup_flags);
