@@ -35,6 +35,7 @@
 #include "st-drawing-area.h"
 
 #include <cairo.h>
+#include <math.h>
 
 typedef struct _StDrawingAreaPrivate StDrawingAreaPrivate;
 struct _StDrawingAreaPrivate {
@@ -99,7 +100,7 @@ st_drawing_area_allocate (ClutterActor          *self,
   width = (int)(0.5 + content_box.x2 - content_box.x1);
   height = (int)(0.5 + content_box.y2 - content_box.y1);
 
-  clutter_canvas_set_scale_factor (CLUTTER_CANVAS (content), resource_scale);
+  clutter_canvas_set_scale_factor (CLUTTER_CANVAS (content), ceilf (resource_scale));
   clutter_canvas_set_size (CLUTTER_CANVAS (content),
                            width,
                            height);
@@ -216,8 +217,8 @@ st_drawing_area_get_surface_size (StDrawingArea *area,
 
   if (st_widget_get_resource_scale (ST_WIDGET (area), &resource_scale))
     {
-      w /= resource_scale;
-      h /= resource_scale;
+      w /= ceilf (resource_scale);
+      h /= ceilf (resource_scale);
     }
   else
     {
