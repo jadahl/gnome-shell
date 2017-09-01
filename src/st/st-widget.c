@@ -533,7 +533,7 @@ notify_children_of_style_change (ClutterActor *self)
 static void
 st_widget_real_style_changed (StWidget *self)
 {
-  clutter_actor_queue_relayout ((ClutterActor *) self);
+  clutter_actor_queue_redraw ((ClutterActor *) self);
   notify_children_of_style_change ((ClutterActor *) self);
 }
 
