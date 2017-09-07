@@ -482,6 +482,7 @@ _st_create_shadow_pipeline_from_actor (StShadow     *shadow_spec,
       G_GNUC_END_IGNORE_DEPRECATIONS;
 
       cogl_framebuffer_clear (fb, COGL_BUFFER_BIT_COLOR, &clear_color);
+      cogl_framebuffer_scale (fb, resource_scale, resource_scale, 1);
       cogl_framebuffer_translate (fb, -box.x1, -box.y1, 0);
       cogl_framebuffer_orthographic (fb, 0, 0, width, height, 0, 1.0);
 
