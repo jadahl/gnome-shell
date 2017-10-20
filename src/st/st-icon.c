@@ -62,6 +62,7 @@ G_DEFINE_TYPE_WITH_PRIVATE (StIcon, st_icon, ST_TYPE_WIDGET)
 
 static void st_icon_update               (StIcon *icon);
 static gboolean st_icon_update_icon_size (StIcon *icon);
+static void maybe_ensure_shadow_pipeline (StIcon *icon);
 
 #define DEFAULT_ICON_SIZE 48
 
@@ -158,12 +159,15 @@ st_icon_dispose (GObject *gobject)
 static void
 st_icon_paint (ClutterActor *actor)
 {
-  StIconPrivate *priv = ST_ICON (actor)->priv;
+  StIcon *icon = ST_ICON (actor);
+  StIconPrivate *priv = icon->priv;
 
   st_widget_paint_background (ST_WIDGET (actor));
 
   if (priv->icon_texture)
     {
+      maybe_ensure_shadow_pipeline (icon);
+
       if (priv->shadow_pipeline)
         {
           ClutterActorBox allocation;
@@ -272,14 +276,25 @@ st_icon_init (StIcon *self)
 }
 
 static void
+maybe_ensure_shadow_pipeline (StIcon *icon)
+{
+  StIconPrivate *priv = icon->priv;
+
+  if (!priv->shadow_spec)
+    return;
+
+  priv->shadow_pipeline =
+    _st_create_shadow_pipeline_from_actor (priv->shadow_spec,
+                                           priv->icon_texture);
+}
+
+static void
 st_icon_update_shadow_pipeline (StIcon *icon)
 {
   StIconPrivate *priv = icon->priv;
 
   g_clear_pointer (&priv->shadow_pipeline, cogl_object_unref);
-
-  if (priv->shadow_spec)
-   priv->shadow_pipeline = _st_create_shadow_pipeline_from_actor (priv->shadow_spec, priv->icon_texture);
+  maybe_ensure_shadow_pipeline (icon);
 }
 
 static void
