@@ -238,6 +238,9 @@ st_label_paint (ClutterActor *actor)
 static void
 st_label_resource_scale_changed (StWidget *widget)
 {
+  StLabelPrivate *priv = ST_LABEL (widget)->priv;
+
+  g_clear_pointer (&priv->text_shadow_pipeline, cogl_object_unref);
   clutter_actor_queue_redraw (CLUTTER_ACTOR (widget));
 }
 
