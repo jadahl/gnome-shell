@@ -283,6 +283,9 @@ maybe_ensure_shadow_pipeline (StIcon *icon)
   if (!priv->shadow_spec)
     return;
 
+  if (priv->pending_texture)
+    return;
+
   if (priv->shadow_pipeline)
     return;
 
