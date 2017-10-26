@@ -295,19 +295,12 @@ maybe_ensure_shadow_pipeline (StIcon *icon)
 }
 
 static void
-st_icon_update_shadow_pipeline (StIcon *icon)
+on_pixbuf_changed (ClutterTexture *texture,
+                   StIcon         *icon)
 {
   StIconPrivate *priv = icon->priv;
 
   g_clear_pointer (&priv->shadow_pipeline, cogl_object_unref);
-  maybe_ensure_shadow_pipeline (icon);
-}
-
-static void
-on_pixbuf_changed (ClutterTexture *texture,
-                   StIcon         *icon)
-{
-  st_icon_update_shadow_pipeline (icon);
 }
 
 static void
@@ -332,7 +325,7 @@ st_icon_finish_update (StIcon *icon)
       /* Remove the temporary ref we added */
       g_object_unref (priv->icon_texture);
 
-      st_icon_update_shadow_pipeline (icon);
+      g_clear_pointer (&priv->shadow_pipeline, cogl_object_unref);
 
       /* "pixbuf-change" is actually a misnomer for "texture-changed" */
       g_signal_connect_object (priv->icon_texture, "pixbuf-change",
