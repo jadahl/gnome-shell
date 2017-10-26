@@ -283,6 +283,9 @@ maybe_ensure_shadow_pipeline (StIcon *icon)
   if (!priv->shadow_spec)
     return;
 
+  if (priv->shadow_pipeline)
+    return;
+
   priv->shadow_pipeline =
     _st_create_shadow_pipeline_from_actor (priv->shadow_spec,
                                            priv->icon_texture);
