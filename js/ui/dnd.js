@@ -209,7 +209,8 @@ var _Draggable = new Lang.Class({
             this._buttonDown = false;
             if (this._dragInProgress) {
                 return this._dragActorDropped(event);
-            } else if (this._dragActor != null && !this._animationInProgress) {
+            } else if ((this._dragActor != null || this._dragActorDestroyed) &&
+                       !this._animationInProgress) {
                 // Drag must have been cancelled with Esc.
                 this._dragComplete();
                 return Clutter.EVENT_STOP;
@@ -223,9 +224,9 @@ var _Draggable = new Lang.Class({
         } else if (event.type() == Clutter.EventType.MOTION ||
                    (event.type() == Clutter.EventType.TOUCH_UPDATE &&
                     global.display.is_pointer_emulating_sequence(event.get_event_sequence()))) {
-            if (this._dragInProgress) {
+            if (this._dragInProgress && this._dragActor) {
                 return this._updateDragPosition(event);
-            } else if (this._dragActor == null) {
+            } else if (this._dragActor == null && !this._dragActorDestroyed) {
                 return this._maybeStartDrag(event);
             }
         // We intercept KEY_PRESS event so that we can process Esc key press to cancel
@@ -343,6 +344,10 @@ var _Draggable = new Lang.Class({
             Shell.util_set_hidden_from_pick(this._dragActor, true);
         }
 
+        this._dragActorDestroyId = this._dragActor.connect('destroy', () => {
+            this._dragActor = null;
+            this._dragActorDestroyed = true;
+        });
         this._dragOrigOpacity = this._dragActor.opacity;
         if (this._dragActorOpacity != undefined)
             this._dragActor.opacity = this._dragActorOpacity;
@@ -501,7 +506,7 @@ var _Draggable = new Lang.Class({
                                                 event.get_time())) {
                     // If it accepted the drop without taking the actor,
                     // handle it ourselves.
-                    if (this._dragActor.get_parent() == Main.uiGroup) {
+                    if (this._dragActor && this._dragActor.get_parent() == Main.uiGroup) {
                         if (this._restoreOnSuccess) {
                             this._restoreDragActor(event.get_time());
                             return true;
@@ -559,18 +564,19 @@ var _Draggable = new Lang.Class({
     _cancelDrag: function(eventTime) {
         this.emit('drag-cancelled', eventTime);
         this._dragInProgress = false;
-        let [snapBackX, snapBackY, snapBackScale] = this._getRestoreLocation();
 
-        if (this._actorDestroyed) {
+        if (this._actorDestroyed || this._dragActorDestroyed) {
             global.screen.set_cursor(Meta.Cursor.DEFAULT);
             if (!this._buttonDown)
                 this._dragComplete();
             this.emit('drag-end', eventTime, false);
-            if (!this._dragOrigParent)
+            if (!this._dragOrigParent && this._dragActor)
                 this._dragActor.destroy();
 
             return;
         }
+
+        let [snapBackX, snapBackY, snapBackScale] = this._getRestoreLocation();
 
         this._animateDragEnd(eventTime,
                              { x: snapBackX,
@@ -599,7 +605,7 @@ var _Draggable = new Lang.Class({
 
         // finish animation if the actor gets destroyed
         // during it
-        this._dragActorDestroyId =
+        this._dragActorAnimationDestroyId =
             this._dragActor.connect('destroy',
                                     Lang.bind(this, this._finishAnimation));
 
@@ -625,8 +631,8 @@ var _Draggable = new Lang.Class({
     },
 
     _onAnimationComplete : function (dragActor, eventTime) {
-        dragActor.disconnect(this._dragActorDestroyId);
-        this._dragActorDestroyId = 0;
+        dragActor.disconnect(this._dragActorAnimationDestroyId);
+        this._dragActorAnimationDestroyId = 0;
 
         if (this._dragOrigParent) {
             Main.uiGroup.remove_child(this._dragActor);
@@ -642,7 +648,7 @@ var _Draggable = new Lang.Class({
     },
 
     _dragComplete: function() {
-        if (!this._actorDestroyed)
+        if (!this._actorDestroyed && this._dragActor)
             Shell.util_set_hidden_from_pick(this._dragActor, false);
 
         this._ungrabEvents();
@@ -653,7 +659,13 @@ var _Draggable = new Lang.Class({
             this._updateHoverId = 0;
         }
 
-        this._dragActor = undefined;
+        if (this._dragActor) {
+            this._dragActor.disconnect(this._dragActorDestroyId);
+            this._dragActor = null;
+        }
+
+        this._dragActorDestroyed = false;
+
         currentDraggable = null;
     }
 });
