@@ -16,7 +16,7 @@ G_DECLARE_FINAL_TYPE (ShellGlobal, shell_global, SHELL, GLOBAL, GObject)
 ShellGlobal   *shell_global_get                       (void);
 
 ClutterStage  *shell_global_get_stage                 (ShellGlobal *global);
-MetaScreen    *shell_global_get_screen                (ShellGlobal *global);
+MetaWorkspace *shell_global_get_active_workspace      (ShellGlobal *global);
 GdkScreen     *shell_global_get_gdk_screen            (ShellGlobal *global);
 MetaDisplay   *shell_global_get_display               (ShellGlobal *global);
 GList         *shell_global_get_window_actors         (ShellGlobal *global);

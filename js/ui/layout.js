@@ -107,7 +107,9 @@ var MonitorConstraint = new Lang.Class({
             }
 
             if (!this._workareasChangedId) {
-                this._workareasChangedId = global.screen.connect('workareas-changed', Lang.bind(this, function() {
+                this._workareasChangedId =
+                    global.display.connect('workareas-changed',
+                                           Lang.bind(this, function() {
                     if (this._workArea)
                         this.actor.queue_relayout();
                 }));
@@ -118,7 +120,7 @@ var MonitorConstraint = new Lang.Class({
             this._monitorsChangedId = 0;
 
             if (this._workareasChangedId)
-                global.screen.disconnect(this._workareasChangedId);
+                global.display.disconnect(this._workareasChangedId);
             this._workareasChangedId = 0;
         }
 
@@ -140,7 +142,8 @@ var MonitorConstraint = new Lang.Class({
 
         let rect;
         if (this._workArea) {
-            let ws = global.screen.get_workspace_by_index(0);
+            let workspaceManager = global.workspace_manager;
+            let ws = workspaceManager.get_workspace_by_index(0);
             rect = ws.get_work_area_for_monitor(index);
         } else {
             rect = Main.layoutManager.monitors[index];
@@ -162,7 +165,7 @@ var Monitor = new Lang.Class({
     },
 
     get inFullscreen() {
-        return global.screen.get_monitor_in_fullscreen(this.index);
+        return global.display.get_monitor_in_fullscreen(this.index);
     }
 })
 
@@ -260,7 +263,7 @@ var LayoutManager = new Lang.Class({
         global.stage.remove_actor(global.top_window_group);
         this.uiGroup.add_actor(global.top_window_group);
 
-        let feedbackGroup = Meta.get_feedback_group_for_screen(global.screen);
+        let feedbackGroup = Meta.get_feedback_group_for_display(global.display);
         global.stage.remove_actor(feedbackGroup);
         this.uiGroup.add_actor(feedbackGroup);
 
@@ -270,14 +273,19 @@ var LayoutManager = new Lang.Class({
         this._bgManagers = [];
 
         // Need to update struts on new workspaces when they are added
-        global.screen.connect('notify::n-workspaces',
-                              Lang.bind(this, this._queueUpdateRegions));
-        global.screen.connect('restacked',
-                              Lang.bind(this, this._windowsRestacked));
-        global.screen.connect('monitors-changed',
-                              Lang.bind(this, this._monitorsChanged));
-        global.screen.connect('in-fullscreen-changed',
-                              Lang.bind(this, this._updateFullscreen));
+        let workspaceManager = global.workspace_manager;
+        workspaceManager.connect('notify::n-workspaces',
+                                 Lang.bind(this, this._queueUpdateRegions));
+
+        let display = global.display;
+        display.connect('restacked',
+                        Lang.bind(this, this._windowsRestacked));
+        display.connect('in-fullscreen-changed',
+                        Lang.bind(this, this._updateFullscreen));
+
+        let monitorManager = Meta.MonitorManager.get();
+        monitorManager.connect('monitors-changed',
+                               Lang.bind(this, this._monitorsChanged));
         this._monitorsChanged();
 
         // NVIDIA drivers don't preserve FBO contents across
@@ -320,12 +328,12 @@ var LayoutManager = new Lang.Class({
     },
 
     _updateMonitors: function() {
-        let screen = global.screen;
+        let display = global.display;
 
         this.monitors = [];
-        let nMonitors = screen.get_n_monitors();
+        let nMonitors = display.get_n_monitors();
         for (let i = 0; i < nMonitors; i++)
-            this.monitors.push(new Monitor(i, screen.get_monitor_geometry(i)));
+            this.monitors.push(new Monitor(i, display.get_monitor_geometry(i)));
 
         if (nMonitors == 0) {
             this.primaryIndex = this.bottomIndex = -1;
@@ -334,7 +342,7 @@ var LayoutManager = new Lang.Class({
         } else {
             // If there are monitors below the primary, then we need
             // to split primary from bottom.
-            this.primaryIndex = this.bottomIndex = screen.get_primary_monitor();
+            this.primaryIndex = this.bottomIndex = display.get_primary_monitor();
             for (let i = 0; i < this.monitors.length; i++) {
                 let monitor = this.monitors[i];
                 if (this._isAboveOrBelowPrimary(monitor)) {
@@ -539,7 +547,7 @@ var LayoutManager = new Lang.Class({
     },
 
     get currentMonitor() {
-        let index = global.screen.get_current_monitor();
+        let index = global.display.get_current_monitor();
         return this.monitors[index];
     },
 
@@ -910,7 +918,8 @@ var LayoutManager = new Lang.Class({
     getWorkAreaForMonitor: function(monitorIndex) {
         // Assume that all workspaces will have the same
         // struts and pick the first one.
-        let ws = global.screen.get_workspace_by_index(0);
+        let workspaceManager = global.workspace_manager;
+        let ws = workspaceManager.get_workspace_by_index(0);
         return ws.get_work_area_for_monitor(monitorIndex);
     },
 
@@ -920,7 +929,7 @@ var LayoutManager = new Lang.Class({
         let [x, y] = actor.get_transformed_position();
         let [w, h] = actor.get_transformed_size();
         let rect = new Meta.Rectangle({ x: x, y: y, width: w, height: h });
-        return global.screen.get_monitor_index_for_rect(rect);
+        return global.display.get_monitor_index_for_rect(rect);
     },
 
     findMonitorForActor: function(actor) {
@@ -1053,9 +1062,9 @@ var LayoutManager = new Lang.Class({
         global.set_stage_input_region(rects);
         this._isPopupWindowVisible = isPopupMenuVisible;
 
-        let screen = global.screen;
-        for (let w = 0; w < screen.n_workspaces; w++) {
-            let workspace = screen.get_workspace_by_index(w);
+        let workspaceManager = global.workspace_manager;
+        for (let w = 0; w < workspaceManager.n_workspaces; w++) {
+            let workspace = workspaceManager.get_workspace_by_index(w);
             workspace.set_builtin_struts(struts);
         }
 

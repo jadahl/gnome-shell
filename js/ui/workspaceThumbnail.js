@@ -309,9 +309,9 @@ var WorkspaceThumbnail = new Lang.Class({
                                                           Lang.bind(this, this._windowAdded));
         this._windowRemovedId = this.metaWorkspace.connect('window-removed',
                                                            Lang.bind(this, this._windowRemoved));
-        this._windowEnteredMonitorId = global.screen.connect('window-entered-monitor',
-                                                           Lang.bind(this, this._windowEnteredMonitor));
-        this._windowLeftMonitorId = global.screen.connect('window-left-monitor',
+        this._windowEnteredMonitorId = global.display.connect('window-entered-monitor',
+                                                              Lang.bind(this, this._windowEnteredMonitor));
+        this._windowLeftMonitorId = global.display.connect('window-left-monitor',
                                                            Lang.bind(this, this._windowLeftMonitor));
 
         this.state = ThumbnailState.NORMAL;
@@ -463,13 +463,13 @@ var WorkspaceThumbnail = new Lang.Class({
         this._doRemoveWindow(metaWin);
     },
 
-    _windowEnteredMonitor : function(metaScreen, monitorIndex, metaWin) {
+    _windowEnteredMonitor : function(metaDisplay, monitorIndex, metaWin) {
         if (monitorIndex == this.monitorIndex) {
             this._doAddWindow(metaWin);
         }
     },
 
-    _windowLeftMonitor : function(metaScreen, monitorIndex, metaWin) {
+    _windowLeftMonitor : function(metaDisplay, monitorIndex, metaWin) {
         if (monitorIndex == this.monitorIndex) {
             this._doRemoveWindow(metaWin);
         }
@@ -495,8 +495,8 @@ var WorkspaceThumbnail = new Lang.Class({
 
         this.metaWorkspace.disconnect(this._windowAddedId);
         this.metaWorkspace.disconnect(this._windowRemovedId);
-        global.screen.disconnect(this._windowEnteredMonitorId);
-        global.screen.disconnect(this._windowLeftMonitorId);
+        global.display.disconnect(this._windowEnteredMonitorId);
+        global.display.disconnect(this._windowLeftMonitorId);
 
         for (let i = 0; i < this._allWindows.length; i++)
             this._allWindows[i].disconnect(this._minimizedChangedIds[i]);
@@ -573,7 +573,7 @@ var WorkspaceThumbnail = new Lang.Class({
             return;
 
         // a click on the already current workspace should go back to the main view
-        if (this.metaWorkspace == global.screen.get_active_workspace())
+        if (this.metaWorkspace == global.get_active_workspace())
             Main.overview.hide();
         else
             this.metaWorkspace.activate(time);
@@ -699,12 +699,18 @@ var ThumbnailsBox = new Lang.Class({
             if (Main.overview.visible)
                 this._createThumbnails();
         }));
+
+        this._switchWorkspaceNotifyId = 0;
+        this._nWorkspacesNotifyId = 0;
+        this._syncStackingId = 0;
     },
 
     _updateSwitcherVisibility: function() {
+        let workspaceManager = global.workspace_manager;
+
         this.actor.visible =
             this._settings.get_boolean('dynamic-workspaces') ||
-                global.screen.n_workspaces > 1;
+                workspaceManager.n_workspaces > 1;
     },
 
     _activateThumbnailAtPoint: function (stageX, stageY, time) {
@@ -862,7 +868,8 @@ var ThumbnailsBox = new Lang.Class({
                 // to open its first window within some time, as tracked by Shell.WindowTracker.
                 // Here, we only add a very brief timeout to avoid the _immediate_ removal of the
                 // workspace while we wait for the startup sequence to load.
-                Main.wm.keepWorkspaceAlive(global.screen.get_workspace_by_index(newWorkspaceIndex),
+                let workspaceManager = global.workspace_manager;
+                Main.wm.keepWorkspaceAlive(workspaceManager.get_workspace_by_index(newWorkspaceIndex),
                                            WORKSPACE_KEEP_ALIVE_TIME);
             }
 
@@ -881,12 +888,14 @@ var ThumbnailsBox = new Lang.Class({
     },
 
     _createThumbnails: function() {
+        let workspaceManager = global.workspace_manager;
+
         this._switchWorkspaceNotifyId =
             global.window_manager.connect('switch-workspace',
                                           Lang.bind(this, this._activeWorkspaceChanged));
         this._nWorkspacesNotifyId =
-            global.screen.connect('notify::n-workspaces',
-                                  Lang.bind(this, this._workspacesChanged));
+            workspaceManager.connect('notify::n-workspaces',
+                                     Lang.bind(this, this._workspacesChanged));
         this._syncStackingId =
             Main.overview.connect('windows-restacked',
                                   Lang.bind(this, this._syncStacking));
@@ -900,7 +909,7 @@ var ThumbnailsBox = new Lang.Class({
         for (let key in ThumbnailState)
             this._stateCounts[ThumbnailState[key]] = 0;
 
-        this.addThumbnails(0, global.screen.n_workspaces);
+        this.addThumbnails(0, workspaceManager.n_workspaces);
 
         this._updateSwitcherVisibility();
     },
@@ -911,7 +920,8 @@ var ThumbnailsBox = new Lang.Class({
             this._switchWorkspaceNotifyId = 0;
         }
         if (this._nWorkspacesNotifyId > 0) {
-            global.screen.disconnect(this._nWorkspacesNotifyId);
+            let workspaceManager = global.workspace_manager;
+            workspaceManager.disconnect(this._nWorkspacesNotifyId);
             this._nWorkspacesNotifyId = 0;
         }
 
@@ -930,9 +940,10 @@ var ThumbnailsBox = new Lang.Class({
         let validThumbnails = this._thumbnails.filter(function(t) {
             return t.state <= ThumbnailState.NORMAL;
         });
+        let workspaceManager = global.workspace_manager;
         let oldNumWorkspaces = validThumbnails.length;
-        let newNumWorkspaces = global.screen.n_workspaces;
-        let active = global.screen.get_active_workspace_index();
+        let newNumWorkspaces = workspaceManager.n_workspaces;
+        let active = workspaceManager.get_active_workspace_index();
 
         if (newNumWorkspaces > oldNumWorkspaces) {
             this.addThumbnails(oldNumWorkspaces, newNumWorkspaces - oldNumWorkspaces);
@@ -940,7 +951,7 @@ var ThumbnailsBox = new Lang.Class({
             let removedIndex;
             let removedNum = oldNumWorkspaces - newNumWorkspaces;
             for (let w = 0; w < oldNumWorkspaces; w++) {
-                let metaWorkspace = global.screen.get_workspace_by_index(w);
+                let metaWorkspace = workspaceManager.get_workspace_by_index(w);
                 if (this._thumbnails[w].metaWorkspace != metaWorkspace) {
                     removedIndex = w;
                     break;
@@ -954,10 +965,12 @@ var ThumbnailsBox = new Lang.Class({
     },
 
     addThumbnails: function(start, count) {
+        let workspaceManager = global.workspace_manager;
+
         if (!this._ensurePorthole())
             return;
         for (let k = start; k < start + count; k++) {
-            let metaWorkspace = global.screen.get_workspace_by_index(k);
+            let metaWorkspace = workspaceManager.get_workspace_by_index(k);
             let thumbnail = new WorkspaceThumbnail(metaWorkspace);
             thumbnail.setPorthole(this._porthole.x, this._porthole.y,
                                   this._porthole.width, this._porthole.height);
@@ -1149,10 +1162,11 @@ var ThumbnailsBox = new Lang.Class({
             return;
         }
 
+        let workspaceManager = global.workspace_manager;
         let themeNode = this.actor.get_theme_node();
 
         let spacing = themeNode.get_length('spacing');
-        let nWorkspaces = global.screen.n_workspaces;
+        let nWorkspaces = workspaceManager.n_workspaces;
         let totalSpacing = (nWorkspaces - 1) * spacing;
 
         alloc.min_size = totalSpacing;
@@ -1166,10 +1180,11 @@ var ThumbnailsBox = new Lang.Class({
             return;
         }
 
+        let workspaceManager = global.workspace_manager;
         let themeNode = this.actor.get_theme_node();
 
         let spacing = this.actor.get_theme_node().get_length('spacing');
-        let nWorkspaces = global.screen.n_workspaces;
+        let nWorkspaces = workspaceManager.n_workspaces;
         let totalSpacing = (nWorkspaces - 1) * spacing;
 
         let avail = forHeight - totalSpacing;
@@ -1200,6 +1215,7 @@ var ThumbnailsBox = new Lang.Class({
         if (this._thumbnails.length == 0) // not visible
             return;
 
+        let workspaceManager = global.workspace_manager;
         let themeNode = this.actor.get_theme_node();
 
         let portholeWidth = this._porthole.width;
@@ -1207,7 +1223,7 @@ var ThumbnailsBox = new Lang.Class({
         let spacing = themeNode.get_length('spacing');
 
         // Compute the scale we'll need once everything is updated
-        let nWorkspaces = global.screen.n_workspaces;
+        let nWorkspaces = workspaceManager.n_workspaces;
         let totalSpacing = (nWorkspaces - 1) * spacing;
         let avail = (box.y2 - box.y1) - totalSpacing;
 
@@ -1241,7 +1257,7 @@ var ThumbnailsBox = new Lang.Class({
         let indicatorY1 = this._indicatorY;
         let indicatorY2;
         // when not animating, the workspace position overrides this._indicatorY
-        let indicatorWorkspace = !this._animatingIndicator ? global.screen.get_active_workspace() : null;
+        let indicatorWorkspace = !this._animatingIndicator ? global.get_active_workspace() : null;
         let indicatorThemeNode = this._indicator.get_theme_node();
 
         let indicatorTopFullBorder = indicatorThemeNode.get_padding(St.Side.TOP) + indicatorThemeNode.get_border_width(St.Side.TOP);
@@ -1332,7 +1348,7 @@ var ThumbnailsBox = new Lang.Class({
 
     _activeWorkspaceChanged: function(wm, from, to, direction) {
         let thumbnail;
-        let activeWorkspace = global.screen.get_active_workspace();
+        let activeWorkspace = global.get_active_workspace();
         for (let i = 0; i < this._thumbnails.length; i++) {
             if (this._thumbnails[i].metaWorkspace == activeWorkspace) {
                 thumbnail = this._thumbnails[i];

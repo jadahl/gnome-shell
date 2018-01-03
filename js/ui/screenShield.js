@@ -570,7 +570,7 @@ var ScreenShield = new Lang.Class({
         this._shortLightbox.connect('shown', Lang.bind(this, this._onShortLightboxShown));
 
         this.idleMonitor = Meta.IdleMonitor.get_core();
-        this._cursorTracker = Meta.CursorTracker.get_for_screen(global.screen);
+        this._cursorTracker = Meta.CursorTracker.get_for_display(global.display);
 
         this._syncInhibitor();
     },

@@ -256,7 +256,7 @@ var SelectArea = new Lang.Class({
                                      onUngrab: Lang.bind(this, this._onUngrab) }))
             return;
 
-        global.screen.set_cursor(Meta.Cursor.CROSSHAIR);
+        global.display.set_cursor(Meta.Cursor.CROSSHAIR);
         Main.uiGroup.set_child_above_sibling(this._group, null);
         this._group.visible = true;
     },
@@ -326,7 +326,7 @@ var SelectArea = new Lang.Class({
     },
 
     _onUngrab: function() {
-        global.screen.set_cursor(Meta.Cursor.DEFAULT);
+        global.display.set_cursor(Meta.Cursor.DEFAULT);
         this.emit('finished', this._result);
 
         GLib.idle_add(GLib.PRIORITY_DEFAULT, Lang.bind(this,

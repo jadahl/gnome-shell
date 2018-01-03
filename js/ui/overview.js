@@ -158,7 +158,7 @@ var Overview = new Lang.Class({
         Main.xdndHandler.connect('drag-begin', Lang.bind(this, this._onDragBegin));
         Main.xdndHandler.connect('drag-end', Lang.bind(this, this._onDragEnd));
 
-        global.screen.connect('restacked', Lang.bind(this, this._onRestacked));
+        global.display.connect('restacked', Lang.bind(this, this._onRestacked));
 
         this._windowSwitchTimeoutId = 0;
         this._windowSwitchTimestamp = 0;
@@ -288,7 +288,8 @@ var Overview = new Lang.Class({
 
         DND.addDragMonitor(this._dragMonitor);
         // Remember the workspace we started from
-        this._lastActiveWorkspaceIndex = global.screen.get_active_workspace_index();
+        let workspaceManager = global.workspace_manager;
+        this._lastActiveWorkspaceIndex = workspaceManager.get_active_workspace_index();
     },
 
     _onDragEnd: function(time) {
@@ -298,7 +299,8 @@ var Overview = new Lang.Class({
         // we have to go back to where we started and hide
         // the overview
         if (this._shown) {
-            global.screen.get_workspace_by_index(this._lastActiveWorkspaceIndex).activate(time);
+            let workspaceManager = global.workspace_manager;
+            workspaceManager.get_workspace_by_index(this._lastActiveWorkspaceIndex).activate(time);
             this.hide();
         }
         this._resetWindowSwitchTimeout();
@@ -319,9 +321,9 @@ var Overview = new Lang.Class({
         let display = Gdk.Display.get_default();
         let deviceManager = display.get_device_manager();
         let pointer = deviceManager.get_client_pointer();
-        let [screen, pointerX, pointerY] = pointer.get_position();
+        let [gdkScreen, pointerX, pointerY] = pointer.get_position();
 
-        pointer.warp(screen, pointerX, pointerY);
+        pointer.warp(gdkScreen, pointerX, pointerY);
     },
 
     _onDragMotion: function(dragEvent) {
@@ -551,7 +553,7 @@ var Overview = new Lang.Class({
         this.visibleTarget = true;
         this._activationTime = Date.now() / 1000;
 
-        Meta.disable_unredirect_for_screen(global.screen);
+        Meta.disable_unredirect_for_display(global.display);
         this.viewSelector.show();
 
         this._overview.opacity = 0;
@@ -636,7 +638,7 @@ var Overview = new Lang.Class({
 
     _hideDone: function() {
         // Re-enable unredirection
-        Meta.enable_unredirect_for_screen(global.screen);
+        Meta.enable_unredirect_for_display(global.display);
 
         this.viewSelector.hide();
         this._desktopFade.hide();

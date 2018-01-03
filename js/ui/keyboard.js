@@ -225,7 +225,7 @@ var Keyboard = new Lang.Class({
         this._updateCaretPositionId = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, Lang.bind(this, function() {
             this._updateCaretPositionId = 0;
 
-            let currentWindow = global.screen.get_display().focus_window;
+            let currentWindow = global.display.focus_window;
             if (!currentWindow)
                 return GLib.SOURCE_REMOVE;
 
@@ -694,7 +694,7 @@ var Keyboard = new Lang.Class({
     },
 
     _moveTemporarily: function () {
-        let currentWindow = global.screen.get_display().focus_window;
+        let currentWindow = global.display.focus_window;
         let rect = currentWindow.get_frame_rect();
 
         let newX = rect.x;

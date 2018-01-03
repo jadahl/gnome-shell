@@ -240,7 +240,7 @@ var Background = new Lang.Class({
                                         file: null,
                                         style: null });
 
-        this.background = new Meta.Background({ meta_screen: global.screen });
+        this.background = new Meta.Background({ meta_display: global.display });
         this.background._delegate = this;
 
         this._settings = params.settings;
@@ -501,12 +501,12 @@ var SystemBackground = new Lang.Class({
         let file = Gio.File.new_for_uri('resource:///org/gnome/shell/theme/noise-texture.png');
 
         if (_systemBackground == null) {
-            _systemBackground = new Meta.Background({ meta_screen: global.screen });
+            _systemBackground = new Meta.Background({ meta_display: global.display });
             _systemBackground.set_color(DEFAULT_BACKGROUND_COLOR);
             _systemBackground.set_file(file, GDesktopEnums.BackgroundStyle.WALLPAPER);
         }
 
-        this.actor = new Meta.BackgroundActor({ meta_screen: global.screen,
+        this.actor = new Meta.BackgroundActor({ meta_display: global.display,
                                                 monitor: 0,
                                                 background: _systemBackground });
 
@@ -541,8 +541,10 @@ var BackgroundSource = new Lang.Class({
         this._settings = new Gio.Settings({ schema_id: settingsSchema });
         this._backgrounds = [];
 
-        this._monitorsChangedId = global.screen.connect('monitors-changed',
-                                                        Lang.bind(this, this._onMonitorsChanged));
+        let monitorManager = Meta.MonitorManager.get();
+        this._monitorsChangedId =
+            monitorManager.connect('monitors-changed',
+                                   Lang.bind(this, this._onMonitorsChanged));
     },
 
     _onMonitorsChanged: function() {
@@ -607,7 +609,8 @@ var BackgroundSource = new Lang.Class({
     },
 
     destroy: function() {
-        global.screen.disconnect(this._monitorsChangedId);
+        let monitorManager = Meta.MonitorManager.get();
+        monitorManager.disconnect(this._monitorsChangedId);
 
         for (let monitorIndex in this._backgrounds) {
             let background = this._backgrounds[monitorIndex];
@@ -757,7 +760,7 @@ var BackgroundManager = new Lang.Class({
 
     _createBackgroundActor: function() {
         let background = this._backgroundSource.getBackground(this._monitorIndex);
-        let backgroundActor = new Meta.BackgroundActor({ meta_screen: global.screen,
+        let backgroundActor = new Meta.BackgroundActor({ meta_display: global.display,
                                                          monitor: this._monitorIndex,
                                                          background: background.background,
                                                          vignette: this._vignette,

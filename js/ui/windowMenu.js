@@ -122,32 +122,32 @@ var WindowMenu = new Lang.Class({
             }
         }
 
-        let screen = global.screen;
-        let nMonitors = screen.get_n_monitors();
+        let display = global.display;
+        let nMonitors = display.get_n_monitors();
         if (nMonitors > 1) {
           this.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
           let monitorIndex = window.get_monitor();
 
-          let upMonitorIndex = screen.get_monitor_neighbor_index(monitorIndex, Meta.ScreenDirection.UP);
+          let upMonitorIndex = display.get_monitor_neighbor_index(monitorIndex, Meta.ScreenDirection.UP);
           if (upMonitorIndex != -1) {
             this.addAction(_("Move to Monitor Up"), Lang.bind(this, function(event) {
               window.move_to_monitor(upMonitorIndex);
             }));
           }
-          let downMonitorIndex = screen.get_monitor_neighbor_index(monitorIndex, Meta.ScreenDirection.DOWN);
+          let downMonitorIndex = display.get_monitor_neighbor_index(monitorIndex, Meta.ScreenDirection.DOWN);
           if (downMonitorIndex != -1) {
             this.addAction(_("Move to Monitor Down"), Lang.bind(this, function(event) {
               window.move_to_monitor(downMonitorIndex);
             }));
           }
-          let leftMonitorIndex = screen.get_monitor_neighbor_index(monitorIndex, Meta.ScreenDirection.LEFT);
+          let leftMonitorIndex = display.get_monitor_neighbor_index(monitorIndex, Meta.ScreenDirection.LEFT);
           if (leftMonitorIndex != -1) {
             this.addAction(_("Move to Monitor Left"), Lang.bind(this, function(event) {
               window.move_to_monitor(leftMonitorIndex);
             }));
           }
-          let rightMonitorIndex = screen.get_monitor_neighbor_index(monitorIndex, Meta.ScreenDirection.RIGHT);
+          let rightMonitorIndex = display.get_monitor_neighbor_index(monitorIndex, Meta.ScreenDirection.RIGHT);
           if (rightMonitorIndex != -1) {
             this.addAction(_("Move to Monitor Right"), Lang.bind(this, function(event) {
               window.move_to_monitor(rightMonitorIndex);
